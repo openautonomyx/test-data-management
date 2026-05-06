@@ -1,10 +1,12 @@
 # Test Data Management
 
-Utilities for generating realistic Salesforce Sales Cloud test data for development, demos, QA, sandboxes, and integration testing.
+Generate synthetic Salesforce Sales Cloud test data for development, demos, QA, sandbox seeding, and integration testing.
 
-## Overview
+The main utility in this repository is `salesforce_test_data_generator.py`, a zero-dependency Python CLI that creates related records for common Salesforce Sales Cloud objects and writes them to CSV, JSON, or both.
 
-This repository currently includes a Python-based Salesforce test data generator that can create related sample records for common Sales Cloud objects:
+## What it generates
+
+The generator creates synthetic records for:
 
 - Accounts
 - Contacts
@@ -13,22 +15,31 @@ This repository currently includes a Python-based Salesforce test data generator
 - Orders
 - Order Items
 
-The generated records preserve simple parent-child relationships, such as Contacts and Opportunities belonging to Accounts, Quotes referencing Opportunities, Orders referencing Quotes, and Order Items referencing Orders.
+The generated objects include simple relationships so records can be imported or tested together:
 
-> **Note:** The generated data is synthetic and intended for testing only. Review and adapt the fields before importing into a real Salesforce org.
+```text
+Account
+├── Contact
+└── Opportunity
+    └── Quote
+        └── Order
+            └── Order Item
+```
+
+> **Important:** This tool creates synthetic data for non-production use. Review generated fields, validation rules, required fields, and import mappings before loading data into any Salesforce org.
 
 ## Repository contents
 
 | File | Purpose |
 | --- | --- |
-| `salesforce_test_data_generator.py` | Main CLI utility for generating Salesforce-style test data. |
-| `main_version.py` | Version/reference script. |
-| `pr_version.py` | Version/reference script. |
+| `salesforce_test_data_generator.py` | Recommended CLI for generating Salesforce-style test data. |
+| `main_version.py` | Earlier/reference version of the generator. |
+| `pr_version.py` | Earlier/reference version of the generator. |
 
 ## Requirements
 
-- Python 3.8+
-- No external Python packages are required; the generator uses only the Python standard library.
+- Python 3.8 or later
+- No third-party Python packages
 
 ## Quick start
 
@@ -39,21 +50,27 @@ git clone https://github.com/openautonomyx/test-data-management.git
 cd test-data-management
 ```
 
-Generate CSV files with the default settings:
+Generate default CSV output:
 
 ```bash
 python salesforce_test_data_generator.py --output ./out
 ```
 
-Generate both CSV and JSON output with a reproducible random seed:
+Generate both CSV and JSON output with deterministic results:
 
 ```bash
-python salesforce_test_data_generator.py --accounts 50 --format both --output ./out --seed 42
+python salesforce_test_data_generator.py \
+  --accounts 50 \
+  --format both \
+  --output ./out \
+  --seed 42
 ```
 
-## Output files
+## Output
 
-When using CSV output, the generator creates one file per object in the selected output directory:
+### CSV output
+
+CSV mode writes one file per generated Salesforce object:
 
 ```text
 out/
@@ -65,31 +82,43 @@ out/
 └── OrderItems.csv
 ```
 
-When using JSON output, the generator writes a single `salesforce_test_data.json` file containing all generated objects.
+### JSON output
 
-## CLI options
+JSON mode writes all generated objects into a single file:
+
+```text
+salesforce_test_data.json
+```
+
+When `--format both` is used, CSV files are written to the output directory and JSON is written to:
+
+```text
+<output>/salesforce_test_data.json
+```
+
+## CLI reference
 
 | Option | Default | Description |
-| --- | ---: | --- |
+| --- | --- | --- |
 | `--accounts` | `50` | Number of Account records to generate. |
-| `--contacts-total` | unset | Total number of Contact records to distribute across Accounts. |
-| `--contacts-per-account` | `2-4` | Random Contact count range per Account when `--contacts-total` is not set. |
-| `--opportunities-total` | unset | Total number of Opportunity records to distribute across Accounts. |
-| `--opportunities-per-account` | `1-3` | Random Opportunity count range per Account when `--opportunities-total` is not set. |
-| `--opp-amount-min` | `5000` | Minimum Opportunity amount. |
-| `--opp-amount-max` | `500000` | Maximum Opportunity amount. |
-| `--opp-stages` | unset | Comma-separated Opportunity stage list to use instead of the built-in stage list. |
+| `--contacts-total` | unset | Total number of Contact records to distribute across generated Accounts. |
+| `--contacts-per-account` | `2-4` | Range of Contacts per Account when `--contacts-total` is not provided. |
+| `--opportunities-total` | unset | Total number of Opportunity records to distribute across generated Accounts. |
+| `--opportunities-per-account` | `1-3` | Range of Opportunities per Account when `--opportunities-total` is not provided. |
+| `--opp-amount-min` | `5000` | Minimum generated Opportunity amount. |
+| `--opp-amount-max` | `500000` | Maximum generated Opportunity amount. |
+| `--opp-stages` | unset | Comma-separated Opportunity stage list. Example: `Prospecting,Qualification,Closed Won`. |
 | `--format` | `csv` | Output format: `csv`, `json`, or `both`. |
-| `--output` | `.` | Output directory for CSV files. For JSON-only output, this is the output file path. |
+| `--output` | `.` | Output directory for CSV and `both` modes. In JSON-only mode, this is treated as the output JSON file path. |
 | `--no-contacts` | `false` | Skip Contact generation. |
 | `--no-opportunities` | `false` | Skip Opportunity generation. |
 | `--no-quotes` | `false` | Skip Quote generation. |
 | `--no-orders` | `false` | Skip Order and Order Item generation. |
-| `--seed` | unset | Random seed for reproducible output. |
+| `--seed` | unset | Random seed for reproducible generated data. |
 
 ## Examples
 
-Generate 100 Accounts with 300 Contacts and 200 Opportunities:
+Generate 100 Accounts, 300 Contacts, and 200 Opportunities:
 
 ```bash
 python salesforce_test_data_generator.py \
@@ -100,7 +129,7 @@ python salesforce_test_data_generator.py \
   --output ./out
 ```
 
-Generate demo data using selected Opportunity stages:
+Generate a small demo dataset with selected Opportunity stages:
 
 ```bash
 python salesforce_test_data_generator.py \
@@ -122,9 +151,18 @@ python salesforce_test_data_generator.py \
   --output ./accounts-contacts
 ```
 
-## Salesforce import order
+Generate JSON only:
 
-If you import the generated CSV files into Salesforce, import parent records before child records:
+```bash
+python salesforce_test_data_generator.py \
+  --accounts 10 \
+  --format json \
+  --output ./salesforce_test_data.json
+```
+
+## Salesforce import guidance
+
+Import parent objects before child objects:
 
 1. `Accounts.csv`
 2. `Contacts.csv`
@@ -133,36 +171,62 @@ If you import the generated CSV files into Salesforce, import parent records bef
 5. `Orders.csv`
 6. `OrderItems.csv`
 
-The generated IDs are synthetic Salesforce-style IDs for test linking. Depending on your import tool and Salesforce org configuration, you may need to map these values to external ID fields instead of native Salesforce `Id` fields.
+The generated IDs are synthetic Salesforce-style identifiers. In many Salesforce import workflows, you should not map these values directly to native `Id` fields. Instead, consider mapping them to external ID fields and using those external IDs to maintain relationships during import.
 
-## Data model notes
+Before importing, check your target org for:
 
-- Contacts reference Accounts through `AccountId`.
-- Opportunities reference Accounts through `AccountId`.
-- Quotes reference Opportunities through `OpportunityId`.
-- Orders reference Quotes through `QuoteId`.
-- Order Items reference Orders through `OrderId`.
-- Opportunity probability is derived from the selected stage when the stage exists in the built-in probability map.
+- Required custom fields
+- Validation rules
+- Picklist restrictions
+- Duplicate rules
+- Record types
+- Automation that may run on insert
+- Object availability and enabled Salesforce features
+
+## Data relationships
+
+| Object | Relationship field | Parent object |
+| --- | --- | --- |
+| Contact | `AccountId` | Account |
+| Opportunity | `AccountId` | Account |
+| Quote | `OpportunityId` | Opportunity |
+| Order | `QuoteId` | Quote |
+| Order Item | `OrderId` | Order |
+
+## Deterministic test data
+
+Use `--seed` when you need repeatable output for tests, snapshots, demos, or CI workflows:
+
+```bash
+python salesforce_test_data_generator.py --accounts 20 --seed 2026 --output ./seeded-data
+```
+
+Running the same command with the same seed will produce the same randomized values for supported generation paths.
 
 ## Development
 
-Run the generator directly while iterating:
+Run the generator locally:
 
 ```bash
 python salesforce_test_data_generator.py --format both --output ./tmp --seed 1
 ```
 
-Because the project currently uses only the Python standard library, no dependency installation step is required.
+Clean generated output:
 
-## Contributing
+```bash
+rm -rf ./tmp ./out ./demo-data ./accounts-contacts
+```
 
-Contributions are welcome. Useful improvements include:
+Because the project uses only the Python standard library, there is no dependency installation step.
 
-- Additional Salesforce objects and relationships
-- Configurable field schemas
-- More realistic address and company data
-- Validation helpers for import order and required fields
-- Unit tests for deterministic generation with seeded runs
+## Suggested next improvements
+
+- Add unit tests for deterministic seeded output
+- Add schema configuration for custom Salesforce fields
+- Add support for more Sales Cloud and Service Cloud objects
+- Add configurable output prefixes and external ID field names
+- Add sample import templates for Salesforce Data Loader
+- Add CI checks for formatting and basic script execution
 
 ## License
 
